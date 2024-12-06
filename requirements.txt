@@ -1,3 +1,8 @@
-scikit-learn
 nameparser
 fire
+joblib
+unidecode
+pandas
+numpy
+scikit-learn
+lightgbm
