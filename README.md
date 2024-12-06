@@ -90,12 +90,11 @@ The F1-score comparison between our algorithm and Gender API is as follows:
 |F | 0.914      | **0.918**     |
 
 
-<div style="padding:7px; border-radius:3px; border:1px solid gray; font-size:140%">
-<b>Conclusion:</b> Our model achieves performance comparable to the best among the five name-to-gender inference services.
-Furthermore, our model is open-source and 
-offers probabilistic gender predictions.
+## Conclusion 
 
-</div>
+- Our model achieves performance comparable to the best among the five name-to-gender inference services.
+- Furthermore, our model is open-source and offers probabilistic gender predictions.
+
 
 ## In practice, we suggest using the following confidence thresholds.
 
