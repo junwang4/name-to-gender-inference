@@ -1,5 +1,5 @@
 
-### Predicting the likelihood of a personal name being classified as male or female.
+### A LightGBM-Based Approach to Predicting Gender Likelihood from Personal Names
 
 ## Installation
 
