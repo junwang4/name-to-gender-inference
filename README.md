@@ -1,5 +1,5 @@
 
-# Predicting the likelihood of a personal name being classified as male or female.
+# Predicting Gender from First Names
 
 ## Installation
 
