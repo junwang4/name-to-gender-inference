@@ -42,6 +42,21 @@ def create_features(df, name_indexes=(0,), ngrams=(1,2,3,4,5,6,7,8), drop_column
         df.drop(['parsed'], axis=1, inplace=True)
 
 
+def print_confusion_matrix(y_true, y_pred, labels=[0, 1, 2], label_names=['F', 'M', 'U']):
+    cm = metrics.confusion_matrix(y_true, y_pred, labels=labels)
+    # Convert to labeled DataFrame
+    cm_df = pd.DataFrame(cm, index=[f'{name}' for name in label_names],
+                        columns=[f'{name} pred' for name in label_names])
+    cm_df[' '] = cm_df.sum(axis=1)
+    #formatted_df = cm_df.applymap(lambda x: f"{x:,}")
+    #print(formatted_df)
+    indented_str = '\n'.join('\t\t\t' + line for line in cm_df[:-1].to_string().split('\n'))
+
+    #print(cm_df[:-1])  # Exclude the last row, which is empty (all zeros)
+    print(indented_str)
+    print()
+
+
 class Name2Gender:
     def __init__(self):
         self.model_folder = './models'
@@ -162,7 +177,7 @@ class Name2Gender:
         return input.replace('.csv', '.pred.csv')
 
 
-    def advanced_error_analysis(self, input, TH_M=0.602, TH_F=0.543):
+    def advanced_evaluation(self, input, TH_M=0.602, TH_F=0.543):
         #TH_M, TH_F = 0.602, 0.543  # for comparing with gender.io results
         #TH_M, TH_F = 0.82, 0.78  # 0.125 rejection rate, precision_min = 0.97, recall_min = 0.95
         #TH_M, TH_F = 0.80, 0.80  # as a baseline reference
@@ -187,17 +202,19 @@ class Name2Gender:
         print(f'- rejection rate (F): {rejection_rate_female:.4f}')
         print(f'- rejection rate/all: {rejection_rate_both:.4f}')
         
-        print(f'\n\n- remove those rejected cases ...\n')
-
-        print()
-        print(metrics.confusion_matrix(df.gender, df.pred))
+        #print(f'\n\n- remove those rejected cases ...\n')
+        print('\n')
+        #print(metrics.confusion_matrix(df.gender, df.pred))
+        print_confusion_matrix(df.gender, df.pred, labels=[0, 1, 2], label_names=['F', 'M', 'U'])
         print()
         df = df[df.pred != 2]  # remove rejected names
-        print(f'- number of names after rejection: {len(df)}\n')
-        print(metrics.classification_report(df.gender, df.pred, digits=3, labels=[0, 1]))
+        #print(f'- number of names after rejection: {len(df)}\n')
+        print(metrics.classification_report(df.gender, df.pred, digits=3, labels=[0, 1], target_names=["F", "M"]))
 
-        print(f'- TH_M = {TH_M:.3f}   TH_F = {TH_F:.3f}')
+        print(f'\n- confidence_male_threshold = {TH_M:.3f}   confidence_female_threshold = {TH_F:.3f}')
 
+
+    def show_gender_api_com_performance(self):
         # estimate gender-api.com's performance
         def get_ytrue_ypred(cm):
             y_true = []
@@ -212,22 +229,34 @@ class Name2Gender:
         gender_api_cm = [ [1750, 172, 46],
                           [110, 3573, 128],
                           [0, 0, 0]]
+
         y_true, y_pred = get_ytrue_ypred(np.array(gender_api_cm))
+        print(y_true, y_pred)
+        print(y_true.shape, y_pred.shape)
+
         print('\n\n*************************\n*\n* Performance of Gender API (gender-api.com)\n*\n*************************\n')
-        print(metrics.confusion_matrix(y_true, y_pred))
-        print(metrics.classification_report(y_true, y_pred, digits=3, labels=[0, 1]))
+
+        #print(metrics.confusion_matrix(y_true, y_pred))
+        print_confusion_matrix(y_true, y_pred, labels=[0, 1, 2], label_names=['F', 'M', 'U'])
+
+        gender_api_cm = [ [1750, 172],
+                          [110, 3573]]
+        y_true, y_pred = get_ytrue_ypred(np.array(gender_api_cm))
+        print(metrics.classification_report(y_true, y_pred, digits=3, labels=[0, 1], target_names=["F", "M"]))
 
 
 #--------------------
 #
-def run(task='', input='', confidence_male_threshold=0.602, confidence_female_threshold=0.543):
+def run(task='', input='', confidence_male_threshold=0.80, confidence_female_threshold=0.80):
     n2g = Name2Gender()
     if task == 'predict':
         n2g.predict_gender(input)
     elif task == 'evaluate':
         n2g.evaluate_model(input)
-    elif task == 'advanced_error_analysis':
-        n2g.advanced_error_analysis(input, confidence_male_threshold, confidence_female_threshold)
+    elif task == 'show_gender_api_com_performance':
+        n2g.show_gender_api_com_performance()
+    elif task == 'advanced_evaluation':
+        n2g.advanced_evaluation(input, confidence_male_threshold, confidence_female_threshold)
 
 
 if __name__ == '__main__':
