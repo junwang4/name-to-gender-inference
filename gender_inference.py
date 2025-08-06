@@ -1,4 +1,5 @@
 import time
+import os
 import unidecode
 import pandas as pd
 import numpy as np
@@ -10,6 +11,10 @@ import joblib
 
 import warnings
 warnings.simplefilter("ignore")
+
+import numpy as np
+import pandas as pd
+from sklearn import metrics
 
 
 def create_features(df, name_indexes=(0,), ngrams=(1,2,3,4,5,6,7,8), drop_column_parsed=True):
@@ -156,24 +161,44 @@ class Name2Gender:
     def get_fpath_of_prediction(self, input):
         return input.replace('.csv', '.pred.csv')
 
-    def advanced_error_analysis(self, input):
+
+    def advanced_error_analysis(self, input, TH_M=0.602, TH_F=0.543):
+        #TH_M, TH_F = 0.602, 0.543  # for comparing with gender.io results
+        #TH_M, TH_F = 0.82, 0.78  # 0.125 rejection rate, precision_min = 0.97, recall_min = 0.95
+        #TH_M, TH_F = 0.80, 0.80  # as a baseline reference
+        #TH_M, TH_F = 0.602, 0.543  # for comparing with gender.io results
+
+        if not os.path.exists(self.get_fpath_of_prediction(input)):
+            self.evaluate_model(input)
+
         print('read prediction data from:', self.get_fpath_of_prediction(input))
         df = pd.read_csv(self.get_fpath_of_prediction(input))
 
-        #TH_M, TH_F = 0.603, 0.550  # for comparing with gender.io results
-        TH_M, TH_F = 0.83, 0.71  # in practice, using these thresholds for balanced recall and precision
-        TH_M, TH_F = 0.602, 0.543  # for comparing with gender.io results
 
         df['pred'] = df['c1'].apply(lambda x: 1 if x>=TH_M else 0 if x<=1-TH_F else 2)
+        df_male = df[df.gender==1]
+        df_female = df[df.gender==0]
+
+        print('\n\n*******************\n*\n* REJECTION RATE ANALYSIS \n*\n*******************\n')
+        rejection_rate_male = len(df_male[df_male.pred==2])/len(df_male)
+        rejection_rate_female = len(df_female[df_female.pred==2])/len(df_female)
+        rejection_rate_both = len(df[df.pred==2])/len(df)
+        print(f'- rejection rate (M): {rejection_rate_male:.4f}')
+        print(f'- rejection rate (F): {rejection_rate_female:.4f}')
+        print(f'- rejection rate/all: {rejection_rate_both:.4f}')
+        
+        print(f'\n\n- remove those rejected cases ...\n')
 
         print()
         print(metrics.confusion_matrix(df.gender, df.pred))
         print()
+        df = df[df.pred != 2]  # remove rejected names
+        print(f'- number of names after rejection: {len(df)}\n')
         print(metrics.classification_report(df.gender, df.pred, digits=3, labels=[0, 1]))
 
-        print(f'- TH_M = {TH_M}   TH_F = {TH_F}')
+        print(f'- TH_M = {TH_M:.3f}   TH_F = {TH_F:.3f}')
 
-        # estimate Gender API's performance
+        # estimate gender-api.com's performance
         def get_ytrue_ypred(cm):
             y_true = []
             y_pred = []
@@ -183,25 +208,26 @@ class Name2Gender:
                     y_true.extend([true_idx] * cnt)
                     y_pred.extend([pred_idx] * cnt)
             return np.array(y_true), np.array(y_pred)
+
         gender_api_cm = [ [1750, 172, 46],
                           [110, 3573, 128],
                           [0, 0, 0]]
         y_true, y_pred = get_ytrue_ypred(np.array(gender_api_cm))
-        print('\n\n*************************\n*\n* Performance of Gender API\n*\n*************************\n')
+        print('\n\n*************************\n*\n* Performance of Gender API (gender-api.com)\n*\n*************************\n')
         print(metrics.confusion_matrix(y_true, y_pred))
         print(metrics.classification_report(y_true, y_pred, digits=3, labels=[0, 1]))
 
 
 #--------------------
 #
-def run(task='', input=''):
+def run(task='', input='', confidence_male_threshold=0.602, confidence_female_threshold=0.543):
     n2g = Name2Gender()
     if task == 'predict':
         n2g.predict_gender(input)
     elif task == 'evaluate':
         n2g.evaluate_model(input)
     elif task == 'advanced_error_analysis':
-        n2g.advanced_error_analysis(input)
+        n2g.advanced_error_analysis(input, confidence_male_threshold, confidence_female_threshold)
 
 
 if __name__ == '__main__':
